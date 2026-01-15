@@ -1,0 +1,15 @@
+# Python build files
+__pycache__/
+*.py[cod]
+
+# Virtual Environments (Keep this local!)
+venv/
+env/
+.env
+
+# IDE settings
+.vscode/
+.idea/
+
+# Optional: Ignore models if they are too big (GitHub limit is 100MB)
+# models/*.pt
