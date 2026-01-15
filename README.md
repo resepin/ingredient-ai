@@ -1,37 +1,63 @@
 # Resepin Ingredient Detection AI Service
 
-A high-performance AI microservice built with **FastAPI** and **YOLOv8** for food ingredient detection. This service is designed to be consumed by a Laravel application via a Dockerized REST API.
+A high-performance AI microservice built with **FastAPI** and **YOLOv8** for food ingredient detection. This service is designed to be consumed by a Laravel application via a Dockerized REST API hosted on Azure Web Apps.
+
+## Local Development Setup
+
+To run the application locally for testing before deployment:
+
+1.  **Install Dependencies**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+2.  **Run the Server**
+    ```bash
+    uvicorn app.main:app --reload
+    ```
+
+3.  **Test the API**
+    Open your browser to: `http://127.0.0.1:8000/docs`
 
 ---
 
-## The Manual Update & Patch Workflow
+## Deployment Workflow
 
+This project uses a **Tag-Based Deployment** strategy. Pushing code to the `main` branch will **not** trigger a deployment. The Azure Web App only updates when a new version tag (e.g., v1.0.2) is pushed to GitHub.
 
-Step A: Build the Image
+### Phase 1: Routine Development (Save Code)
+Use this step to save your work to GitHub without affecting the live server.
 
-```shell
-docker build -t ingredient-ai .
+```powershell
+# 1. Stage all changes
+git add .
+
+# 2. Commit your changes
+git commit -m "Description of your changes"
+
+# 3. Push to GitHub (This will NOT trigger a deploy)
+git push origin main
 ```
 
-Step B: Tag for Azure (X: major patch, Y: minor patch)
+### Phase 2: Release to Production (Deploy)
+When the code is tested and ready for the live server, use a tag to trigger the GitHub Action.
 
-```shell
-docker tag ingredient-ai resepin.azurecr.io/ingredient-ai:vX.Y
+```powershell
+# 1. Create a version tag locally (e.g., v1.0.2)
+git tag v1.0.2
+
+# 2. Push the tag to GitHub
+# This triggers the "Deploy Release to Azure" workflow
+git push origin v1.0.2
 ```
 
-Step C: Push to Registry
+### Managing Tags
+If you make a mistake with a tag, you can delete it:
 
-```shell
-az acr login --name resepin
-docker push resepin.azurecr.io/ingredient-ai:vX.Y
-```
+```powershell
+# Delete tag locally
+git tag -d v1.0.2
 
-Step D: Switch the Tag in Azure
-
-```shell
-1. Go to the Azure Portal.
-2. Open your App Service (e.g., resepin-api).
-3. Go to Deployment Center > Settings.
-4. Change the Tag value to the one you just pushed (e.g., v1.1).
-5. Click Save.
+# Delete tag from GitHub
+git push --delete origin v1.0.2
 ```
