@@ -8,19 +8,18 @@ from app.services import model
 app = FastAPI(
     title="Ingredient Detection API",
     description="An API that uses YOLOv8 to detect food ingredients for Laravel",
-    version="1.0.1"
+    version="1.0.2"
 )
 
-# --- Dynamic CORS Configuration ---
-# Get the origins from .env or Azure settings. 
-# Default to localhost if nothing is found.
-raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000")
+# DEFAULT ORIGINS
+default_origins = "http://localhost:8000,http://127.0.0.1:8000,https://resepin.azurewebsites.net"
 
+raw_origins = os.getenv("ALLOWED_ORIGINS", default_origins)
 origins = [origin.strip() for origin in raw_origins.split(",")]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=origins, # Now includes your Azure URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
