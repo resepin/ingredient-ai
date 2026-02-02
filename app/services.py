@@ -44,7 +44,7 @@ def predict_food_items(image_bytes: bytes):
         results = model.predict(
             source=img, 
             save=False, 
-            conf=0.25,
+            # conf=0.25,
             imgsz=IMG_SIZE,
             verbose=False
         )
