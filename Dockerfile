@@ -25,4 +25,4 @@ EXPOSE 80
 # -k uvicorn.workers.UvicornWorker: Tells Gunicorn to use Uvicorn for speed
 # -w 2: Spawns 2 worker processes (Best for B1 plan with 1.75GB RAM)
 # --timeout 600: Prevents "Critical Worker Timeout" if YOLO takes too long
-CMD ["gunicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "--timeout", "600"]
+CMD ["gunicorn", "app.main:app", "--bind", "0.0.0.0:80", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "--timeout", "600"]
