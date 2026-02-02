@@ -8,7 +8,7 @@ from app.services import model
 app = FastAPI(
     title="Ingredient Detection API",
     description="An API that uses YOLOv8 to detect food ingredients for Laravel",
-    version="1.0.3"
+    version="1.0.4"
 )
 
 # DEFAULT ORIGINS
