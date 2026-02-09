@@ -1,68 +1,59 @@
+import gc
 import io
-from PIL import Image, UnidentifiedImageError
-from fastapi import HTTPException
-from ultralytics import YOLO
-from dotenv import load_dotenv
+import logging
 import os
-import gc 
+
+from dotenv import load_dotenv
+from fastapi import HTTPException
+from PIL import Image, UnidentifiedImageError
+from ultralytics import YOLO
 
 load_dotenv()
 
-MODEL_PATH = os.getenv("MODEL_PATH", "models/best.pt")
+logger = logging.getLogger(__name__)
 
-# Image size for inference - 640px is the standard YOLO input size for best accuracy
+MODEL_PATH = os.getenv("MODEL_PATH", "models/best.pt")
 IMG_SIZE = int(os.getenv("YOLO_IMG_SIZE", "640"))
 
-# Load model globally so it stays in memory (Fastest Inference)
-print(f"Loading YOLO Model from: {MODEL_PATH}...")
+logger.info("Loading YOLO model from: %s", MODEL_PATH)
 model = YOLO(MODEL_PATH)
 
-# Optimize model for faster inference
 try:
-    model.fuse()  # Fuse Conv2d + BatchNorm layers for 10-15% speedup
-    print("Model fused for faster inference")
-except:
-    print("Model fusion not available, continuing with standard model")
+    model.fuse()
+    logger.info("Model fused for faster inference.")
+except Exception:
+    logger.info("Model fusion not available, using standard model.")
 
-print(f"Model loaded successfully! Using image size: {IMG_SIZE}px")
+logger.info("Model loaded. Inference image size: %dpx", IMG_SIZE)
 
-def predict_food_items(image_bytes: bytes):
+
+def predict_food_items(image_bytes: bytes) -> list[str]:
     try:
-        # 1. Verify Image
         img = Image.open(io.BytesIO(image_bytes))
         img.verify()
-        
-        # 2. Re-open for processing
+
         img = Image.open(io.BytesIO(image_bytes))
-        
-        # 3. Run Inference with optimized settings
-        # imgsz=480: Faster than 640 while maintaining accuracy on B1
-        # conf=0.25: Only return high-confidence items to reduce noise
-        # verbose=False: Reduce console spam
+
         results = model.predict(
-            source=img, 
-            save=False, 
-            # conf=0.25,
+            source=img,
+            save=False,
             imgsz=IMG_SIZE,
-            verbose=False
+            verbose=False,
         )
-        
-        detected_items = []
+
+        detected_items: set[str] = set()
         for r in results:
-            if hasattr(r.boxes, 'cls'):
+            if hasattr(r.boxes, "cls"):
                 for c in r.boxes.cls:
-                    class_name = model.names[int(c)] # type: ignore
-                    detected_items.append(class_name)
-        
-        # Force garbage collection to keep RAM usage low on B1 Plan
-        del img
-        del results
+                    detected_items.add(model.names[int(c)])  # type: ignore
+
+        del img, results
         gc.collect()
 
-        return list(set(detected_items))
+        return list(detected_items)
 
     except UnidentifiedImageError:
         raise HTTPException(status_code=400, detail="Invalid image file")
     except Exception as e:
-        print(f"Model Error: {e}")
+        logger.error("Prediction failed: %s", e)
         return []
