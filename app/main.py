@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes import router
-from app.services import model
+from app.services import model, IMG_SIZE
 
 # Configure logging
 logging.basicConfig(
@@ -19,8 +19,10 @@ logger = logging.getLogger(__name__)
 if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
     try:
         from azure.monitor.opentelemetry import configure_azure_monitor
-        configure_azure_monitor()
-        print("✅ Application Insights telemetry initialized")
+        configure_azure_monitor(
+            enable_live_metrics=True,
+        )
+        print("✅ Application Insights telemetry initialized (Live Metrics enabled)")
         logger.info("Application Insights telemetry initialized")
     except Exception as e:
         print(f"❌ Failed to initialize Application Insights: {e}")
@@ -38,8 +40,8 @@ async def lifespan(app: FastAPI):
         from PIL import Image
         print("Warming up YOLO model...")
         logger.info("Warming up model...")
-        dummy_img = Image.fromarray(np.zeros((480, 480, 3), dtype=np.uint8))
-        model.predict(dummy_img, imgsz=480, verbose=False)
+        dummy_img = Image.fromarray(np.zeros((IMG_SIZE, IMG_SIZE, 3), dtype=np.uint8))
+        model.predict(dummy_img, imgsz=IMG_SIZE, verbose=False)
         print("✅ Model warmup complete - ready for inference")
         logger.info("Model warmup complete.")
     except Exception as e:
@@ -50,8 +52,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Ingredient Detection API",
-    description="YOLOv8-powered food ingredient detection service",
-    version="1.2.1",
+    description="YOLOv8-powered food ingredient detection service optimized for B3",
+    version="1.3.0",
     lifespan=lifespan,
 )
 

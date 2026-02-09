@@ -6,6 +6,7 @@ ultralytics==8.3.40
 numpy==1.26.4
 pydantic==2.5.3
 python-dotenv
+onnxruntime==1.20.1
 
 gunicorn==21.2.0
 
