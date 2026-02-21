@@ -18,11 +18,24 @@ logger = logging.getLogger(__name__)
 # Initialize Application Insights telemetry
 if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
     try:
+        from opentelemetry.sdk.resources import Resource, SERVICE_NAME, SERVICE_VERSION, SERVICE_INSTANCE_ID
         from azure.monitor.opentelemetry import configure_azure_monitor
+        import socket
+
+        # Set cloud role name so this component appears in Application Map
+        # and cloud role instance to distinguish between the 2 B3 instances
+        resource = Resource.create({
+            SERVICE_NAME: "resepin-ai-inference",
+            SERVICE_VERSION: "1.3.3",
+            SERVICE_INSTANCE_ID: socket.gethostname(),
+        })
+
         configure_azure_monitor(
             enable_live_metrics=True,
+            resource=resource,
         )
         print("✅ Application Insights telemetry initialized (Live Metrics enabled)")
+        print(f"   Cloud Role Name: resepin-ai-inference | Instance: {socket.gethostname()}")
         logger.info("Application Insights telemetry initialized")
     except Exception as e:
         print(f"❌ Failed to initialize Application Insights: {e}")

@@ -20,12 +20,22 @@ logger = logging.getLogger(__name__)
 yolo_settings.update({"sync": False})
 _ul_events.enabled = False
 
-# Custom metric: tracks pure inference time (what you see in Postman locally)
+# Custom metrics: tracks inference time for P50/P90/P99 percentile monitoring
 meter = metrics.get_meter("resepin-api")
 inference_histogram = meter.create_histogram(
     name="inference_duration_ms",
-    description="Pure YOLO model inference time in milliseconds",
+    description="Pure YOLO model inference time in milliseconds (P50/P90/P99)",
     unit="ms",
+)
+inference_counter = meter.create_counter(
+    name="inference_count",
+    description="Total number of inference requests processed",
+    unit="1",
+)
+inference_error_counter = meter.create_counter(
+    name="inference_error_count",
+    description="Total number of failed inference requests",
+    unit="1",
 )
 
 MODEL_PATH = os.getenv("MODEL_PATH", "models/best.onnx")
@@ -69,14 +79,23 @@ def predict_food_items(image_bytes: bytes) -> list[str]:
                 for c in r.boxes.cls:
                     detected_items.add(model.names[int(c)])  # type: ignore
 
-        # Send pure inference time to Application Insights as a custom metric
-        inference_histogram.record(inference_duration_ms)
-        logger.info("Inference completed in %.1fms", inference_duration_ms)
+        # Record metrics for Application Insights (P50/P90/P99 via histogram)
+        inference_histogram.record(
+            inference_duration_ms,
+            {"endpoint": "/predict", "method": "POST"},
+        )
+        inference_counter.add(
+            1,
+            {"endpoint": "/predict", "status": "success", "items_detected": str(len(detected_items))},
+        )
+        logger.info("Inference completed in %.1fms, detected %d items", inference_duration_ms, len(detected_items))
 
         return list(detected_items)
 
     except (UnidentifiedImageError, OSError):
+        inference_error_counter.add(1, {"endpoint": "/predict", "error": "invalid_image"})
         raise HTTPException(status_code=400, detail="Invalid image file")
     except Exception as e:
+        inference_error_counter.add(1, {"endpoint": "/predict", "error": type(e).__name__})
         logger.error("Prediction failed: %s", e)
         return []
