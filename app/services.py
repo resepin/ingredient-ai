@@ -8,13 +8,17 @@ from fastapi import HTTPException
 from opentelemetry import metrics
 from PIL import Image, UnidentifiedImageError
 from ultralytics import YOLO, settings as yolo_settings
+from ultralytics.hub.utils import events as _ul_events
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Disable Ultralytics analytics (Google Analytics calls)
+# Disable Ultralytics analytics (Google Analytics calls).
+# settings.update() writes to YAML but the Events instance already captured
+# enabled=True at import time, so we also kill it directly.
 yolo_settings.update({"sync": False})
+_ul_events.enabled = False
 
 # Custom metric: tracks pure inference time (what you see in Postman locally)
 meter = metrics.get_meter("resepin-api")
@@ -41,6 +45,11 @@ def predict_food_items(image_bytes: bytes) -> list[str]:
         if img.mode != "RGB":
             img = img.convert("RGB")
 
+        # Pre-resize large images to reduce YOLO internal preprocessing overhead
+        max_dim = max(img.size)
+        if max_dim > IMG_SIZE:
+            img.thumbnail((IMG_SIZE, IMG_SIZE), Image.BILINEAR)
+
         # Measure pure inference time (excluding network, I/O, serialization)
         inference_start = time.perf_counter()
         results = model.predict(
@@ -48,6 +57,8 @@ def predict_food_items(image_bytes: bytes) -> list[str]:
             save=False,
             imgsz=IMG_SIZE,
             verbose=False,
+            conf=0.25,
+            max_det=50,
         )
         inference_duration_ms = (time.perf_counter() - inference_start) * 1000
 

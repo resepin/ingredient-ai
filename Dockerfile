@@ -13,20 +13,24 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 COPY ./app /code/app
 COPY ./models /code/models
 
+# Persist sync=False in Ultralytics settings YAML BEFORE any model operations.
+# This ensures the Events class reads sync=False at import time (not after).
+RUN python -c "from ultralytics import settings; settings.update({'sync': False})"
+
 # Export model to ONNX for faster CPU inference (~30-50% speedup over PyTorch)
 RUN python -c "from ultralytics import YOLO; YOLO('models/best.pt').export(format='onnx', imgsz=640, simplify=True)"
 
-# Optimal threading: 2 threads per worker × 2 workers = 4 total = B3 core count
+# B3 SKU: 4 vCPU, 7 GB RAM, 10 GB storage, up to 3 scale instances
+# Running 2 instances for redundancy and stability
+# Optimal threading: 2 threads per worker × 2 workers = 4 total = B3 core count per instance
 ENV OMP_NUM_THREADS=2
+ENV ORT_NUM_THREADS=2
 ENV MODEL_PATH=models/best.onnx
 ENV YOLO_IMG_SIZE=640
-
-# Disable Ultralytics phoning home to Google Analytics
 ENV YOLO_VERBOSE=false
-ENV HUB_DISABLED=true
 
 EXPOSE 80
 
-# 2 workers: each gets 2 CPU cores worth of threads for faster per-request inference
-# (4 workers would split cores and slow each request down)
+# 2 workers per instance: each gets 2 CPU cores worth of threads for faster per-request inference
+# With 2 instances × 2 workers = 4 total workers across the service for high availability
 CMD ["gunicorn", "app.main:app", "--bind", "0.0.0.0:80", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "--timeout", "300"]

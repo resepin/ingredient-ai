@@ -52,8 +52,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Ingredient Detection API",
-    description="YOLOv8-powered food ingredient detection service optimized for B3",
-    version="1.3.0",
+    description="YOLOv8-powered food ingredient detection service optimized for B3 (2 instances)",
+    version="1.3.3",
     lifespan=lifespan,
 )
 
